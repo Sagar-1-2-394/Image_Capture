@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Stream</title>
+</head>
+<body>
+    <h1>Webcam Stream Viewer</h1>
+    <img src="/video_feed" id="stream" alt="Stream" style="width: 600px; height: 400px;">
+    <button onclick="captureImage()">Capture Image</button>
+    <script>
+        function captureImage() {
+            window.location.href = '/capture';
+        }
+    </script>
+</body>
+</html>
