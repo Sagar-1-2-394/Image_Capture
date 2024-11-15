@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Video Streaming</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function VideoStream() {
+            const [isStreaming, setIsStreaming] = useState(false);
+            const [streamImage, setStreamImage] = useState('');
+            const [capturedImage, setCapturedImage] = useState('');
+            const videoRef = useRef(null);
+            const canvasRef = useRef(null);
+            const socketRef = useRef(null);
+
+            useEffect(() => {
+                socketRef.current = io();
+
+                socketRef.current.on('stream_data', (data) => {
+                    setStreamImage(data.image);
+                });
+
+                socketRef.current.on('captured_image', (data) => {
+                    setCapturedImage(data.image);
+                });
+
+                return () => {
+                    if (socketRef.current) {
+                        socketRef.current.disconnect();
+                    }
+                };
+            }, []);
+
+            const startStreaming = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                    setIsStreaming(true);
+
+                    const interval = setInterval(() => {
+                        if (canvasRef.current && videoRef.current) {
+                            const context = canvasRef.current.getContext('2d');
+                            if (context) {
+                                context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
+                                const data = canvasRef.current.toDataURL('image/jpeg', 0.5);
+                                socketRef.current.emit('stream', { image: data });
+                            }
+                        }
+                    }, 100);
+
+                    return () => clearInterval(interval);
+                } catch (error) {
+                    console.error('Error accessing camera:', error);
+                }
+            };
+
+            const stopStreaming = () => {
+                if (videoRef.current && videoRef.current.srcObject) {
+                    const tracks = videoRef.current.srcObject.getTracks();
+                    tracks.forEach((track) => track.stop());
+                }
+                setIsStreaming(false);
+            };
+
+            const captureImage = () => {
+                socketRef.current.emit('capture', { image: streamImage });
+            };
+
+            return (
+                <div className="container mx-auto p-4">
+                    <div className="w-full max-w-3xl mx-auto border rounded-lg p-4 shadow">
+                        <h1 className="text-xl font-bold mb-4">Interactive Video Streaming</h1>
+                        <div>
+                            <button
+                                className={`px-4 py-2 rounded ${
+                                    isStreaming ? 'bg-red-500' : 'bg-blue-500'
+                                } text-white`}
+                                onClick={isStreaming ? stopStreaming : startStreaming}
+                            >
+                                {isStreaming ? 'Stop Streaming' : 'Start Streaming'}
+                            </button>
+                        </div>
+                        <div className="aspect-video bg-gray-300 mt-4 rounded overflow-hidden">
+                            <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover"></video>
+                        </div>
+                        <div className="aspect-video bg-gray-300 mt-4 rounded overflow-hidden">
+                            {streamImage ? (
+                                <img src={streamImage} alt="Live Stream" className="w-full h-full object-cover" />
+                            ) : (
+                                <p className="text-center mt-4 text-gray-600">Waiting for Stream...</p>
+                            )}
+                        </div>
+                        <button
+                            className="mt-4 px-4 py-2 bg-green-500 text-white rounded"
+                            onClick={captureImage}
+                            disabled={!streamImage}
+                        >
+                            Capture Image
+                        </button>
+                        {capturedImage && (
+                            <div className="mt-4">
+                                <img src={capturedImage} alt="Captured" className="w-full rounded" />
+                                <a
+                                    href={capturedImage}
+                                    download="captured_image.jpg"
+                                    className="block mt-2 px-4 py-2 bg-blue-500 text-white text-center rounded"
+                                >
+                                    Download Captured Image
+                                </a>
+                            </div>
+                        )}
+                    </div>
+                    <canvas ref={canvasRef} className="hidden"></canvas>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<VideoStream />, document.getElementById('root'));
+    </script>
+</body>
+</html>

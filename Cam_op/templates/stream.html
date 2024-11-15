@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Video</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Stream Video</h1>
+    <video id="localVideo" autoplay playsinline></video>
+    <button id="startBtn">Start Streaming</button>
+    <button id="stopBtn" disabled>Stop Streaming</button>
+
+    <script>
+        const socket = io();
+        const localVideo = document.getElementById('localVideo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        let mediaStream;
+        let interval;
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                localVideo.srcObject = mediaStream;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+
+                interval = setInterval(() => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = localVideo.videoWidth;
+                    canvas.height = localVideo.videoHeight;
+                    canvas.getContext('2d').drawImage(localVideo, 0, 0);
+                    const data = canvas.toDataURL('image/jpeg', 0.5);
+                    socket.emit('stream', { image: data });
+                }, 100);
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            clearInterval(interval);
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>

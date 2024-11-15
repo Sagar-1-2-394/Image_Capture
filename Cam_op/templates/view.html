@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Stream</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>View Stream</h1>
+    <img id="streamImage" width="640" height="480">
+    <br>
+    <button id="captureBtn">Capture</button>
+    <br>
+    <img id="capturedImage" style="display: none;" width="640" height="480">
+    <br>
+    <a id="downloadLink" style="display: none;">Download Captured Image</a>
+
+    <script>
+        const socket = io();
+        const streamImage = document.getElementById('streamImage');
+        const captureBtn = document.getElementById('captureBtn');
+        const capturedImage = document.getElementById('capturedImage');
+        const downloadLink = document.getElementById('downloadLink');
+
+        socket.on('stream_data', (data) => {
+            streamImage.src = data.image;
+        });
+
+        captureBtn.addEventListener('click', () => {
+            socket.emit('capture', { image: streamImage.src });
+        });
+
+        socket.on('captured_image', (data) => {
+            capturedImage.src = data.image;
+            capturedImage.style.display = 'block';
+            downloadLink.href = data.image;
+            downloadLink.download = 'captured_image.jpg';
+            downloadLink.style.display = 'inline';
+        });
+    </script>
+</body>
+</html>
